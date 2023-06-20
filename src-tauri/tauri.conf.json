@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "WeRead",
+    "productName": "Ai-Art",
     "version": "1.0.0"
   },
   "tauri": {
@@ -8,9 +8,9 @@
       "csp": null,
       "dangerousRemoteDomainIpcAccess": [
         {
-          "domain": "weread.qq.com",
+          "domain": "https://www.ai-art.com.cn/?MidjourneyCN/",
           "windows": [
-            "pake"
+            "Ai-Art"
           ],
           "enableTauriAPI": true
         }
@@ -20,7 +20,7 @@
       "active": false
     },
     "systemTray": {
-      "iconPath": "png/weread_512.png",
+      "iconPath": "png/ai-art_512.png",
       "iconAsTemplate": true
     },
     "allowlist": {
