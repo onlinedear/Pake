@@ -2,6 +2,10 @@ name: Publish Rooter to Release
 
 on:
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build run ID to download"
+        required: true
 
 permissions:
   contents: write
@@ -12,7 +16,7 @@ jobs:
     steps:
       - name: Download build artifact
         run: |
-          gh run download 35341736505 --repo "${{ github.repository }}" --dir ./out
+          gh run download "${{ inputs.run_id }}" --repo "${{ github.repository }}" --dir ./out
           find ./out -type f -exec ls -la {} \;
         env:
           GH_TOKEN: ${{ github.token }}
@@ -21,6 +25,6 @@ jobs:
         run: |
           DMG=$(find ./out -name '*.dmg' | head -1)
           echo "dmg=$DMG"
-          gh release create rooter-app "$DMG" --repo "${{ github.repository }}" --title "Rooter App" --notes "Built from run 35341736505 (https://rooter.mcdonalds.cn/ai-chat)" --target master
+          gh release create "rooter-${{ inputs.run_id }}" "$DMG" --repo "${{ github.repository }}" --title "Rooter App" --notes "Built from run ${{ inputs.run_id }} (https://rooter.mcdonalds.cn/ai-chat)" --target master
         env:
           GH_TOKEN: ${{ github.token }}
