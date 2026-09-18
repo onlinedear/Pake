@@ -159,6 +159,8 @@ jobs:
             ARGS+=("--targets" "${{ inputs.targets }}")
           fi
 
+          ARGS+=("--inject" "rooter-domain-map.js")
+
           echo "Running: node dist/cli.js ${ARGS[@]}"
           node dist/cli.js "${ARGS[@]}"
 
