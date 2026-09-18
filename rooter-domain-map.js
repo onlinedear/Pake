@@ -75,10 +75,7 @@
   });
 })();
 
-// ============================================================================
-// 以下为 Rooter 本地优先助手（custom.js 合并注入；CLI 打包会用本文件覆盖 custom.js，
-//   故把本地助手直接并入 --inject 的目标文件，确保真注入生效）
-// ============================================================================
+// ==== Rooter 本地优先助手（合并注入）====
 
 // ============================================================================
 // Rooter 本地优先助手 — 注入脚本 (custom.js)
@@ -550,6 +547,15 @@
   }
 
   function mount() {
+    // 只在聊天页挂载：聊天页才有输入框 textarea._inputTextarea_；
+    // 登录页/其他页没有，避免 chip 飘到登录页右下角。
+    const composer = document.querySelector('textarea[class*="_inputTextarea_"]');
+    if (!composer) {
+      // 不是聊天页：清掉可能残留的 chip 和浮动条
+      document.querySelectorAll('[data-rla="tier-chip"],[data-rla="project-chip"],[data-rla="floatbar"]')
+        .forEach((el) => el.remove());
+      return false;
+    }
     if (document.querySelector('[data-rla="tier-chip"]')) return true; // 已挂
 
     const modelTrigger = findModelTrigger();
@@ -611,7 +617,7 @@
   //   例：  @file:/Users/me/report.txt 帮我总结
   //     → 【本地文件 report.txt】\n<内容>\n【文件结束】 帮我总结
   // ==========================================================================
-  const FILE_TOKEN_RE = /@file:("([^"]+)"|'([^']+)'|(\S+))/g;
+  const FILE_TOKEN_RE = /@file:\s*("([^"]+)"|'([^']+)'|(\S+))/g;
   let _rlaExpanding = false;   // 防止重写后重新提交时二次拦截
 
   function findComposer() {
@@ -719,8 +725,37 @@
     console.log('[本地助手] 输入框拦截层就绪：用 @file:<路径> 附带本机文件内容');
   }
 
+  // --------------------------------------------------------------------------
+  // 诊断浮层：一加载就在右下角显示脚本真实状态（不用开控制台）
+  //   显示：脚本版本 / IN_TAURI / 输入框找到否 / 发送按钮找到否 / 拦截装否
+  //   点右上角 × 可关闭；仅用于调试期定位问题。
+  // --------------------------------------------------------------------------
+  const RLA_VERSION = 'diag-1';
+  function renderDiag() {
+    let d = document.getElementById('rla-diag');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'rla-diag';
+      d.style.cssText =
+        'position:fixed;left:12px;bottom:12px;z-index:2147483000;' +
+        'font:11px/1.5 -apple-system,monospace;color:#0f0;background:rgba(0,0,0,.82);' +
+        'padding:8px 10px;border-radius:8px;max-width:360px;white-space:pre-wrap;' +
+        'box-shadow:0 2px 12px rgba(0,0,0,.3)';
+      document.body.appendChild(d);
+    }
+    const ta = document.querySelector('textarea[class*="_inputTextarea_"]') || document.querySelector('textarea');
+    const send = document.querySelector('button[aria-label="发送"]') || document.querySelector('button[class*="_sendBtn_"]');
+    d.textContent =
+      `[本地助手 ${RLA_VERSION}]\n` +
+      `IN_TAURI=${IN_TAURI}  拦截=${!!window.__rlaComposerHooked}\n` +
+      `输入框=${ta ? 'OK' : '无'}  发送按钮=${send ? 'OK' : '无'}\n` +
+      `本地项目=${STATE.localProject ? STATE.localProject.name : '未选'}\n` +
+      `点这里发我截图 · 双击隐藏`;
+    d.ondblclick = () => d.remove();
+  }
+
   function ensureMounted() {
-    try { syncLocalProjectFromStore(); mount(); renameCloudProject(); installComposerInterceptor(); }
+    try { syncLocalProjectFromStore(); mount(); renameCloudProject(); installComposerInterceptor(); renderDiag(); }
     catch (e) { /* noop */ }
   }
   // 启动即先恢复一次（脚本首次注入时可能已在会话页）

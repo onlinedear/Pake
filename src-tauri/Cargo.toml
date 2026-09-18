@@ -25,6 +25,7 @@ tauri = { version = "2.10.2", features = [
   "tray-icon",
   "image-ico",
   "image-png",
+  "devtools",
 ] }
 tauri-plugin-window-state = "2.4.1"
 tauri-plugin-oauth = "2.0.0"
