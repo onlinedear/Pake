@@ -548,14 +548,10 @@
 
   function mount() {
     // 只在聊天页挂载：聊天页才有输入框 textarea._inputTextarea_；
-    // 登录页/其他页没有，避免 chip 飘到登录页右下角。
-    const composer = document.querySelector('textarea[class*="_inputTextarea_"]');
-    if (!composer) {
-      // 不是聊天页：清掉可能残留的 chip 和浮动条
-      document.querySelectorAll('[data-rla="tier-chip"],[data-rla="project-chip"],[data-rla="floatbar"]')
-        .forEach((el) => el.remove());
-      return false;
-    }
+    // 登录页/其他页没有输入框，直接返回，不做任何 DOM 改动（避免触发 observer 循环）。
+    const composer = document.querySelector('textarea[class*="_inputTextarea_"]')
+      || document.querySelector('textarea');
+    if (!composer) return false;
     if (document.querySelector('[data-rla="tier-chip"]')) return true; // 已挂
 
     const modelTrigger = findModelTrigger();
@@ -725,45 +721,35 @@
     console.log('[本地助手] 输入框拦截层就绪：用 @file:<路径> 附带本机文件内容');
   }
 
-  // --------------------------------------------------------------------------
-  // 诊断浮层：一加载就在右下角显示脚本真实状态（不用开控制台）
-  //   显示：脚本版本 / IN_TAURI / 输入框找到否 / 发送按钮找到否 / 拦截装否
-  //   点右上角 × 可关闭；仅用于调试期定位问题。
-  // --------------------------------------------------------------------------
-  const RLA_VERSION = 'diag-1';
-  function renderDiag() {
-    let d = document.getElementById('rla-diag');
-    if (!d) {
-      d = document.createElement('div');
-      d.id = 'rla-diag';
-      d.style.cssText =
-        'position:fixed;left:12px;bottom:12px;z-index:2147483000;' +
-        'font:11px/1.5 -apple-system,monospace;color:#0f0;background:rgba(0,0,0,.82);' +
-        'padding:8px 10px;border-radius:8px;max-width:360px;white-space:pre-wrap;' +
-        'box-shadow:0 2px 12px rgba(0,0,0,.3)';
-      document.body.appendChild(d);
-    }
-    const ta = document.querySelector('textarea[class*="_inputTextarea_"]') || document.querySelector('textarea');
-    const send = document.querySelector('button[aria-label="发送"]') || document.querySelector('button[class*="_sendBtn_"]');
-    d.textContent =
-      `[本地助手 ${RLA_VERSION}]\n` +
-      `IN_TAURI=${IN_TAURI}  拦截=${!!window.__rlaComposerHooked}\n` +
-      `输入框=${ta ? 'OK' : '无'}  发送按钮=${send ? 'OK' : '无'}\n` +
-      `本地项目=${STATE.localProject ? STATE.localProject.name : '未选'}\n` +
-      `点这里发我截图 · 双击隐藏`;
-    d.ondblclick = () => d.remove();
-  }
-
   function ensureMounted() {
-    try { syncLocalProjectFromStore(); mount(); renameCloudProject(); installComposerInterceptor(); renderDiag(); }
+    try { syncLocalProjectFromStore(); mount(); renameCloudProject(); installComposerInterceptor(); }
     catch (e) { /* noop */ }
   }
   // 启动即先恢复一次（脚本首次注入时可能已在会话页）
   try { const r = loadLocalProject(); if (r) STATE.localProject = r; } catch (e) {}
+
+  // 关键：observer 回调会改 DOM（挂 chip），改 DOM 又触发 observer——
+  //   若同步直接跑 ensureMounted 会形成高频正反馈循环，卡死主线程导致白屏。
+  //   所以：① 防抖（DOM 变化聚合后延迟执行）② 执行时先断开 observer，跑完再接回。
+  let _moTimer = null;
+  const mo = new MutationObserver(() => {
+    if (_moTimer) return;              // 已排队，忽略后续变化
+    _moTimer = setTimeout(() => {
+      _moTimer = null;
+      mo.disconnect();                 // 跑之前断开，避免自触发
+      try { ensureMounted(); } catch (e) { /* noop */ }
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+    }, 400);
+  });
+
   ensureMounted();
-  const mo = new MutationObserver(() => ensureMounted());
   mo.observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(ensureMounted, 2000);
+  // 轮询兜底也断开-重连，且降到 3 秒
+  setInterval(() => {
+    mo.disconnect();
+    try { ensureMounted(); } catch (e) { /* noop */ }
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }, 3000);
 
   // 暴露给控制台手动测试
   window.__rlaState = STATE;
