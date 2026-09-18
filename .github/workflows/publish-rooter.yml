@@ -1,0 +1,26 @@
+name: Publish Rooter to Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        run: |
+          gh run download 35341736505 --repo "${{ github.repository }}" --dir ./out
+          find ./out -type f -exec ls -la {} \;
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish to release
+        run: |
+          DMG=$(find ./out -name '*.dmg' | head -1)
+          echo "dmg=$DMG"
+          gh release create rooter-app "$DMG" --repo "${{ github.repository }}" --title "Rooter App" --notes "Built from run 35341736505 (https://rooter.mcdonalds.cn/ai-chat)" --target master
+        env:
+          GH_TOKEN: ${{ github.token }}
