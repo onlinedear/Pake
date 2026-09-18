@@ -1,6 +1,7 @@
 #[cfg(target_os = "macos")]
 pub mod auth;
 pub mod config;
+pub mod fs;
 pub mod invoke;
 #[cfg(target_os = "macos")]
 pub mod menu;

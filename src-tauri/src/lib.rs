@@ -30,6 +30,7 @@ use app::{
         clear_dock_badge, download_file, increment_dock_badge, send_notification, set_dock_badge,
         set_dock_badge_label, set_zoom, update_theme_mode, webview_navigate,
     },
+    fs::{fs_list, fs_read, pick_directory},
     setup::{set_global_shortcut, set_system_tray},
     window::{
         open_additional_window_safe, reapply_window_icon, reveal_built_window, save_last_url,
@@ -229,7 +230,8 @@ pub fn run_app() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_opener::init()); // Add this
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init()); // Add this
 
     // Only add single instance plugin if multiple instances are not allowed
     if !multi_instance {
@@ -303,6 +305,9 @@ pub fn run_app() {
             update_theme_mode,
             set_zoom,
             webview_navigate,
+            pick_directory,
+            fs_list,
+            fs_read,
         ])
         .setup(move |app| {
             app.manage(MultiWindowState::new(
